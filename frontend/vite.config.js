@@ -19,6 +19,7 @@ export default defineConfig(({ mode }) => {
       host: "0.0.0.0", // This allows external connections
       port: 5173,
       strictPort: true,
+      allowedHosts: ["all"],
       hmr: {
         port: 5173,
       },

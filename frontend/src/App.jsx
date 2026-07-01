@@ -1,4 +1,4 @@
-import React, { Fragment } from "react";
+import React, { Fragment, useEffect } from "react";
 
 // Redux Selector / Action
 import { useDispatch } from "react-redux";
@@ -11,7 +11,15 @@ import {
 
 function App({ children }) {
   const dispatch = useDispatch();
-  dispatch(setSetting());
+
+  useEffect(() => {
+    try {
+      dispatch(setSetting());
+    } catch (err) {
+      console.error("Failed to restore theme settings, continuing with defaults:", err);
+    }
+  }, [dispatch]);
+
   return (
     <>
       <div className="App">{children}</div>
