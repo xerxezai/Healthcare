@@ -144,17 +144,20 @@ if DEBUG:
 else:
     # Production CORS settings
     cors_origins = os.getenv('CORS_ALLOWED_ORIGINS', '')
-    if cors_origins:
-        # Strip trailing slashes and whitespace from each origin
-        CORS_ALLOWED_ORIGINS = [origin.strip().rstrip('/') for origin in cors_origins.split(',')]
-    else:
-        # Fallback if no environment variable set
-        CORS_ALLOWED_ORIGINS = [
-            "https://frontend-6c2pzmsub-xerxezs-projects.vercel.app",
-            "https://frontend-gamma-three-41.vercel.app",
-            "https://xerxez.in",
-            "https://www.xerxez.in",
-        ]
+    env_origins = [origin.strip().rstrip('/') for origin in cors_origins.split(',') if origin.strip()]
+
+    # Always-allowed origins, regardless of what CORS_ALLOWED_ORIGINS is set to
+    # in the environment, so the live frontend can never be locked out by a
+    # stale/incomplete env var.
+    known_good_origins = [
+        "https://healthcare-frontend-red.vercel.app",
+        "https://frontend-6c2pzmsub-xerxezs-projects.vercel.app",
+        "https://frontend-gamma-three-41.vercel.app",
+        "https://xerxez.in",
+        "https://www.xerxez.in",
+    ]
+
+    CORS_ALLOWED_ORIGINS = list(dict.fromkeys(env_origins + known_good_origins))
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_HEADERS = True
@@ -172,10 +175,10 @@ CORS_ALLOWED_HEADERS = [
 
 # Session and CSRF settings
 SESSION_COOKIE_HTTPONLY = True
-
-SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SECURE = False
-CSRF_COOKIE_SECURE = False
+# Browsers require the Secure flag whenever SameSite=None, or they silently
+# drop the cookie - this must track DEBUG/HTTPS, not be hardcoded False.
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_SAMESITE = 'None' if not DEBUG else 'Lax'  # 'None' for cross-origin in production
 CSRF_COOKIE_HTTPONLY = False
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -204,6 +207,11 @@ AUTHENTICATION_BACKENDS = [
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
+        # Actual login (hospital.auth_views.login_api) uses Django session
+        # cookies, not real JWTs - without this, DRF's request.user never
+        # falls back to the session and every standard IsAuthenticated view
+        # 401s for logged-in users.
+        "rest_framework.authentication.SessionAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",  # Default to requiring authentication
