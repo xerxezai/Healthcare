@@ -24,7 +24,15 @@ const DNASequencingDashboard = () => {
   const [showWholeGenomeModal, setShowWholeGenomeModal] = useState(false);
   const [showExomeModal, setShowExomeModal] = useState(false);
   const [showPharmacogenomicsModal, setShowPharmacogenomicsModal] = useState(false);
-  
+  const [uploadFormData, setUploadFormData] = useState({
+    sample_id: '',
+    patient_name: '',
+    sample_type: '',
+    analysis_type: ''
+  });
+  const [uploadFiles, setUploadFiles] = useState(null);
+  const [uploadSubmitting, setUploadSubmitting] = useState(false);
+
   const permissions = usePermissions();
 
   useEffect(() => {
@@ -248,6 +256,35 @@ const DNASequencingDashboard = () => {
     } catch (error) {
       console.error('Failed to start analysis:', error);
       alert(`Failed to start analysis: ${error.message}`);
+    }
+  };
+
+  const handleUploadInputChange = (e) => {
+    const { name, value } = e.target;
+    setUploadFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleUploadSubmit = async () => {
+    const { sample_id, patient_name, sample_type, analysis_type } = uploadFormData;
+
+    if (!sample_id || !patient_name || !sample_type || !analysis_type) {
+      alert('Please fill in Sample ID, Patient Name, Sample Type, and Analysis Type.');
+      return;
+    }
+
+    setUploadSubmitting(true);
+    try {
+      await handleStartAnalysis({
+        sample_id,
+        patient_id: patient_name,
+        analysis_method: sample_type,
+        analysis_type
+      });
+    } finally {
+      setUploadSubmitting(false);
+      setShowUploadModal(false);
+      setUploadFormData({ sample_id: '', patient_name: '', sample_type: '', analysis_type: '' });
+      setUploadFiles(null);
     }
   };
 
@@ -1927,13 +1964,25 @@ const DNASequencingDashboard = () => {
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Sample ID *</Form.Label>
-                  <Form.Control type="text" placeholder="Enter sample ID" />
+                  <Form.Control
+                    type="text"
+                    name="sample_id"
+                    value={uploadFormData.sample_id}
+                    onChange={handleUploadInputChange}
+                    placeholder="Enter sample ID"
+                  />
                 </Form.Group>
               </Col>
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Patient Name *</Form.Label>
-                  <Form.Control type="text" placeholder="Enter patient name" />
+                  <Form.Control
+                    type="text"
+                    name="patient_name"
+                    value={uploadFormData.patient_name}
+                    onChange={handleUploadInputChange}
+                    placeholder="Enter patient name"
+                  />
                 </Form.Group>
               </Col>
             </Row>
@@ -1941,7 +1990,11 @@ const DNASequencingDashboard = () => {
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Sample Type *</Form.Label>
-                  <Form.Select>
+                  <Form.Select
+                    name="sample_type"
+                    value={uploadFormData.sample_type}
+                    onChange={handleUploadInputChange}
+                  >
                     <option value="">Select sample type</option>
                     <option value="whole-genome">Whole Genome Sequencing</option>
                     <option value="exome">Whole Exome Sequencing</option>
@@ -1954,7 +2007,11 @@ const DNASequencingDashboard = () => {
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Analysis Type *</Form.Label>
-                  <Form.Select>
+                  <Form.Select
+                    name="analysis_type"
+                    value={uploadFormData.analysis_type}
+                    onChange={handleUploadInputChange}
+                  >
                     <option value="">Select analysis type</option>
                     <option value="cancer">Cancer Genomics</option>
                     <option value="rare-disease">Rare Disease</option>
@@ -1967,7 +2024,12 @@ const DNASequencingDashboard = () => {
             </Row>
             <Form.Group className="mb-3">
               <Form.Label>Sample Files</Form.Label>
-              <Form.Control type="file" multiple accept=".fastq,.fq,.fastq.gz,.fq.gz" />
+              <Form.Control
+                type="file"
+                multiple
+                accept=".fastq,.fq,.fastq.gz,.fq.gz"
+                onChange={(e) => setUploadFiles(e.target.files)}
+              />
               <Form.Text className="text-muted">
                 Select FASTQ files for sequencing analysis
               </Form.Text>
@@ -1975,11 +2037,24 @@ const DNASequencingDashboard = () => {
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="outline-secondary" onClick={() => setShowUploadModal(false)}>
+          <Button variant="outline-secondary" onClick={() => setShowUploadModal(false)} disabled={uploadSubmitting}>
             Cancel
           </Button>
-          <Button variant="primary">
-            <i className="ri-upload-line me-1"></i>Upload Sample
+          <Button
+            variant="primary"
+            onClick={handleUploadSubmit}
+            disabled={uploadSubmitting}
+          >
+            {uploadSubmitting ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" />
+                Uploading...
+              </>
+            ) : (
+              <>
+                <i className="ri-upload-line me-1"></i>Upload Sample
+              </>
+            )}
           </Button>
         </Modal.Footer>
       </Modal>
